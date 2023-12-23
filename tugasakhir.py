@@ -6,29 +6,8 @@ from collections import defaultdict
 # Menghubungkan ke database SQLite
 conn = sqlite3.connect('halal_db.db')
 
-# Tabel untuk foodproduct
-cursor_foodproduct = conn.cursor()
-
-# Tabel untuk brand
-cursor_brand = conn.cursor()
-
-# Tabel untuk certificate
-cursor_certificate = conn.cursor()
-
-# Tabel untuk manufacture
-cursor_manufacture = conn.cursor()
-
-# Tabel untuk prodtype
-cursor_prodtype = conn.cursor()
-
-# Tabel untuk node similarity
-cursor_nodesimilarity = conn.cursor()
-
-# Tabel untuk knn fastrp
-cursor_knn_fastrp = conn.cursor()
-
-# Tabel untuk knn node2vec
-cursor_knn_node2vec = conn.cursor()
+# Menghubungkan ke semua tabel
+cursor_tables = conn.cursor()
 
 
 # Membagi query dan membuat kondisi
@@ -51,29 +30,9 @@ def sort_results(resp, klist):
     return resp
 
 
-# Mengumpulkan Rekomendasi
-def get_recommendation(k, etype):
-    emb_sim = "knn_fastrp" if etype == "fastrp" else ("knn_node2vec" if etype == "node2vec" else "nodesimilarity")
-
-    cursor_knn_fastrp.execute(f"""
-    SELECT id1, foodproduct2 FROM {emb_sim}
-    WHERE {split_query(k)[1]}
-    ORDER BY id1, similarity DESC
-    """)
-    rec = cursor_knn_fastrp.fetchall()
-
-    rlist = defaultdict(list)
-    for num, value in rec:
-        rlist[num].append(value)
-    rc = dict(rlist)
-    rec_dict = {key: " • ".join([f"{i}) {val}" for i, val in enumerate(values, start=1)]) for key, values in rc.items()}
-    recommendation = pd.DataFrame(rec_dict.items(), columns=['ID', 'Rekomendasi'])
-    return recommendation
-
-
 # Mendapatkan respons berdasarkan kata kunci yang dimasukkan
 def get_response(k):
-    cursor_foodproduct.execute(f"""
+    cursor_tables.execute(f"""
     SELECT
         foodproduct.f_id,
         foodproduct.NamaProduk AS foodproduct1,
@@ -88,11 +47,31 @@ def get_response(k):
     LEFT JOIN certificate ON foodproduct.c_id = certificate.c_id
     WHERE {split_query(k)[1]}
     """)
-    res = cursor_foodproduct.fetchall()
+    res = cursor_tables.fetchall()
 
     result = sort_results(res, split_query(k)[0])
     response = pd.DataFrame(result, columns=['ID', 'Produk', 'Penyedia', 'Merk', 'Jenis', 'Sertifikat'])
     return response
+
+
+# Mengumpulkan data rekomendasi
+def get_recommendation(k, etype):
+    emb_sim = "knn_fastrp" if etype == "fastrp" else ("knn_node2vec" if etype == "node2vec" else "nodesimilarity")
+
+    cursor_tables.execute(f"""
+    SELECT id1, foodproduct2 FROM {emb_sim}
+    WHERE {split_query(k)[1]}
+    ORDER BY id1, similarity DESC
+    """)
+    rec = cursor_tables.fetchall()
+
+    rlist = defaultdict(list)
+    for num, value in rec:
+        rlist[num].append(value)
+    rc = dict(rlist)
+    rec_dict = {key: " • ".join([f"{i}) {val}" for i, val in enumerate(values, start=1)]) for key, values in rc.items()}
+    recommendation = pd.DataFrame(rec_dict.items(), columns=['ID', 'Rekomendasi'])
+    return recommendation
 
 
 st.title("Assalamualaikum. Selamat datang di Pencarian Produk dan Penyedia Makanan Halal Surabaya.")

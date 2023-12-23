@@ -34,7 +34,7 @@ cursor_knn_node2vec = conn.cursor()
 # Membagi query dan membuat kondisi
 def split_query(keyword):
     qlist = keyword.lower().split()
-    cond = " OR ".join([f"NamaProduk LIKE '%{q}%'" for q in qlist])
+    cond = " OR ".join([f"foodproduct1 LIKE '%{q}%'" for q in qlist])
     return qlist, cond
 
 
@@ -56,7 +56,7 @@ def get_recommendation(k, etype):
     emb_sim = "knn_fastrp" if etype == "fastrp" else ("knn_node2vec" if etype == "node2vec" else "nodesimilarity")
 
     cursor_knn_fastrp.execute(f"""
-    SELECT id1, foodproduct2 AS NamaProduk FROM {emb_sim}
+    SELECT id1, foodproduct2 FROM {emb_sim}
     WHERE {split_query(k)[1]}
     ORDER BY id1, similarity DESC
     """)
@@ -76,7 +76,7 @@ def get_response(k):
     cursor_foodproduct.execute(f"""
     SELECT
         foodproduct.f_id,
-        foodproduct.NamaProduk,
+        foodproduct.NamaProduk AS foodproduct1,
         manufacture.NamaPu,
         brand.MerekDagang,
         prodtype.NamaJenisProduk,
